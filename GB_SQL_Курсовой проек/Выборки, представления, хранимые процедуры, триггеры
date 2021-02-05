@@ -1,0 +1,93 @@
+-- ВЫБОРКИ
+-- вывести наименованние продукта со всеми характеристиками сортировать по 	размеру		
+		
+select product.name, perfume.perfume_name, size_product.size_product, units.symbol
+	from characteristic as ch
+		left join perfume
+			on ch.perfume_id = perfume.id 
+		left join size_product 
+			on ch.size_product_id = size_product.id 
+		left join units 
+			on ch.units_id = units.id
+		left join product
+			on product.id = ch.product_id
+		order by size_product;
+			
+		
+		
+		
+-- вывести все должности сторудиков уоторые работают в 3 цехе
+
+	select worker.skill, (select workshop_name from workshop where id = 3)
+	from making 
+		left join worker 
+			on making.worker_id = worker.id 
+		left join production 
+			on making.production_id = production.id
+		group by worker.skill;
+
+
+-- ПРЕДСТАВЛЕНИЯ 
+--  количество сотрудников работающих в каждом цехе и наименовнаие цехов
+	
+CREATE OR REPLACE VIEW count_worker AS
+select production.workshop_id, workshop.workshop_name, count(making.worker_id)
+	from production
+		join making
+			on production.id = making.production_id
+		join workshop 
+			on production.workshop_id = workshop.id 
+		group by production.workshop_id;
+		
+select * from count_worker;
+
+
+-- наименование всех товаров имеющих отдушку, название
+
+CREATE OR REPLACE VIEW product_perfume AS
+select product.name, perfume.perfume_name 
+	from characteristic
+		join product
+			on characteristic.product_id = product.id 
+		join perfume
+			on characteristic.perfume_id = perfume.id
+		where perfume.perfume_name != "без отдушки"
+		order by perfume.perfume_name;
+		
+select * from product_perfume;
+
+
+-- ХРАНИМАЯ ПРОЦЕДУРА 
+
+DELIMITER //
+create procedure get_quantity (new_quantity int)
+begin 
+	if new_quantity < (select (sum(quantity_max) - sum(quantity)) from storage) then 
+			select "Место на складе есть";
+	end if;
+
+	if new_quantity = (select (sum(quantity_max) - sum(quantity)) from storage) then 
+			select "Склад заполнен";
+	end if;
+
+	if new_quantity = (select (sum(quantity_max) - sum(quantity)) from storage) then 
+			select "Место на складе под данный товар не хватит";
+	end if;
+		
+end//
+
+DELIMITER ;
+
+
+-- ТРИГГЕР 
+
+DELIMITER //
+
+CREATE TRIGGER update_date AFTER INSERT ON production
+FOR EACH ROW
+BEGIN
+        UPDATE production SET created_at = NOW() WHERE NEW.product_id = id;
+END //
+
+DELIMITER ;
+
